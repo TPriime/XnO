@@ -1,10 +1,10 @@
 package com.prime.app.xo;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Random;
 
 import static com.prime.app.xo.XO.*;
 import static com.prime.app.xo.XO.Position.*;
@@ -59,13 +59,48 @@ class XOTest {
 
     @Test
     void shouldChangePlayerOnEachMove(){
-        Arrays.asList(A1, A2, A3, B1, B2, B3, C1, C2, C3)
-                .forEach( pos -> game.makeMove(pos));
+        System.out.println("first: "+ game.getCurrentPlayer());
+        Arrays.asList(A1, A2, A3, B1, B2, B3, C2, C1, C3)
+                .forEach( pos -> {
+                    game.makeMove(pos);
+                    System.out.println(pos);
+                    System.out.println("next: " + game.getCurrentPlayer());
+                });
         assertTrue(game.isPlayerXMove(A1));
         assertTrue(game.isPlayerOMove(A2));
         assertTrue(game.isPlayerXMove(A3));
-        assertTrue(game.isPlayerXMove(C1));
-        assertTrue(game.isPlayerOMove(C2));
+        assertTrue(game.isPlayerXMove(C2));
+        assertTrue(game.isPlayerOMove(C1));
         assertTrue(game.isPlayerXMove(C3));
+    }
+
+
+    @Test
+    void gen(){
+        Object[] pos =
+                Arrays.stream(Position.values())
+                .filter( p -> p!= INVALID).toArray();
+
+        int n = new Random().nextInt(pos.length);
+        System.out.println(pos[n]);
+    }
+
+
+    @Test
+    void singlePlayer() {
+        XO single = XO.build(Mode.SINGLE);
+
+        Thread t = new Thread(()->{
+            single.getMoveEvent().subscribe( event ->{
+                System.out.println(event);
+            });
+        });
+        t.start();
+
+        single.getMoveEvent().subscribe();
+
+        single.makeMove(A3);
+        //should be player x's turn again
+        assertEquals(Player.X, single.getCurrentPlayer());
     }
 }

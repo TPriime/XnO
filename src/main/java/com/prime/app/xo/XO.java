@@ -4,35 +4,28 @@ import io.reactivex.rxjava3.subjects.PublishSubject;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static com.prime.app.xo.XO.Position.*;
 
 
 public class XO {
-    private XO instance;
     private Mode gameMode;
     private Player currentPlayer;
     private Map<Position, Player> moves = new HashMap<>();
-    private EventListener listener;
-    private Player winner;
+    private Optional<Player> winner;
+    private boolean isGameOver = false;
 
-    private PublishSubject nextPlayerEvent, moveEvent, gameCompleteEvent;
+    private PublishSubject<Player> nextPlayerEvent;
+    private PublishSubject<Position> moveEvent;
+    private PublishSubject<Optional<Player>> gameCompleteEvent;
 
-
-    public interface EventListener {
-        void onNextPlayer(Player player);
-        void onMoveEvent(Position position);
-        void onGameComplete(Player player);
-    }
 
     private XO(){
-        //nextPlayerEvent = new PublishSubject<Player>.create();
+        nextPlayerEvent = PublishSubject.create();
+        moveEvent = PublishSubject.create();
+        gameCompleteEvent = PublishSubject.create();
     }
 
-    public void registerEventListener(EventListener listener) {
-        this.listener = listener;
-    }
 
     public Player getCurrentPlayer() {
         return currentPlayer;
@@ -77,13 +70,15 @@ public class XO {
     private void switchPlayer() {
         currentPlayer = currentPlayer==Player.X ?
                 Player.O : Player.X;
-        //nextPlayerEvent.onNext(currentPlayer);
-        if(listener!=null) listener.onNextPlayer(currentPlayer);
+        nextPlayerEvent.onNext(currentPlayer);
     }
 
 
     private void generateAndMakeMove() {
-        //TODO make a random move
+        Object[] pos = Arrays.stream(Position.values())
+                .filter( p -> !moves.containsKey(p)).toArray();
+        int i = new Random().nextInt(pos.length);
+        makeMove((Position) pos[i]);
     }
 
     private boolean isWinMove(List<Position> markedPositions) {
@@ -112,24 +107,28 @@ public class XO {
                 .collect(Collectors.toList());
 
         if(isWinMove(playerXMoves)) {
-            winner = Player.X; return true;
+            winner = Optional.of(Player.X); return true;
         } else if(isWinMove(playerOMoves)) {
-            winner = Player.O; return true;
+            winner = Optional.of(Player.O); return true;
         }
         else if(moves.keySet().containsAll(Arrays.asList(A1, A2, A3, B1, B2, B3, C1, C2, C3))) {
             //moves exhausted and no winner, just return
-            return true;
+            winner = Optional.empty(); return true;
         }
         return false;
     }
 
 
     protected boolean isPlayerXMove(Position pos) {
+        Player p = moves.get(pos);
+        if(p==null) return false;
         return moves.get(pos).equals(Player.X);
     }
 
     protected boolean isPlayerOMove(Position pos) {
-        return moves.get(pos).equals(Player.O);
+        Player p = moves.get(pos);
+        if(p==null) return false;
+        return p.equals(Player.O);
     }
 
 
@@ -139,20 +138,20 @@ public class XO {
 
 
     public MoveStatus makeMove(Position pos){
+        if(isGameOver) return MoveStatus.FAIL;
+
         if(!isValidMove(pos)) {
-            //moveEvent.onNext(Position.INVALID);
-            if(listener!=null) listener.onMoveEvent(INVALID);
+            moveEvent.onNext(Position.INVALID);
             return MoveStatus.FAIL;
         }
         //record move
         moves.put(pos, currentPlayer);
-        //moveEvent.onNext(pos);
-        if(listener!=null) listener.onMoveEvent(pos);
+        moveEvent.onNext(pos);
 
         //if game has ended
         if(isGameEnded()) {
-            if(listener!=null) listener.onGameComplete(winner);
-            //gameCompleteEvent.onNext(winner);
+            gameCompleteEvent.onNext(winner);
+            isGameOver = true;
             return MoveStatus.TERMINAL;
         }
 
@@ -167,6 +166,7 @@ public class XO {
 
 
 
+    //get a game instance/start a new game
     public static XO build(Mode mode){
         XO instance  = new XO();
         instance.gameMode = mode;
