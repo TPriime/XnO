@@ -3,6 +3,7 @@ package com.prime.app.xo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -87,20 +88,43 @@ class XOTest {
 
 
     @Test
-    void singlePlayer() {
+    void pcShouldNotMakeInvalidMoves() {
         XO single = XO.build(Mode.SINGLE);
+        ArrayList<Position> moves = new ArrayList<>();
 
         Thread t = new Thread(()->{
             single.getMoveEvent().subscribe( event ->{
-                System.out.println(event);
+                moves.add((Position) event);
             });
         });
         t.start();
-
         single.getMoveEvent().subscribe();
 
-        single.makeMove(A3);
-        //should be player x's turn again
-        assertEquals(Player.X, single.getCurrentPlayer());
+        for(int n=0; n<10_000; n++){
+            single.makeMove(A1);
+            single.restart();
+        }
+
+        assertFalse(moves.contains(INVALID));
+    }
+
+
+    @Test
+    void shouldRestartGame(){
+        //having exhausted moves
+        Arrays.asList(A1, A2, A3, B1, B2, B3, C2, C1, C3)
+                .forEach( pos -> {
+                    game.makeMove(pos);
+                    System.out.println(pos);
+                    System.out.println("next: " + game.getCurrentPlayer());
+                });
+
+        //having restart
+        game.restart();
+
+        //allow more moves
+        assertNotEquals(MoveStatus.FAIL, game.makeMove(C2));
+        assertNotEquals(MoveStatus.FAIL, game.makeMove(A1));
+        assertNotEquals(MoveStatus.FAIL, game.makeMove(B3));
     }
 }

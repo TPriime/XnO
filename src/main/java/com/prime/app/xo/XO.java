@@ -76,7 +76,7 @@ public class XO {
 
     private void generateAndMakeMove() {
         Object[] pos = Arrays.stream(Position.values())
-                .filter( p -> !moves.containsKey(p)).toArray();
+                .filter( p -> !moves.containsKey(p) && p!=INVALID).toArray();
         int i = new Random().nextInt(pos.length);
         makeMove((Position) pos[i]);
     }
@@ -165,12 +165,18 @@ public class XO {
     }
 
 
-
     //get a game instance/start a new game
     public static XO build(Mode mode){
         XO instance  = new XO();
         instance.gameMode = mode;
         instance.currentPlayer = Player.X;
         return instance;
+    }
+
+    //reset game
+    public void restart(){
+        moves.clear();
+        isGameOver = false;
+        winner = Optional.empty();
     }
 }
